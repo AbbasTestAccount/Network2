@@ -15,4 +15,11 @@ def save_cache_to_file():
         json.dump(cache, cache_file)
 
 
+def load_cache_from_file():
+    global cache
+    with open("cache.json", "r") as cache_file:
+        # load data from json
+        cache = json.load(cache_file)
+
+
 print(CACHE_EXPIRATION_TIME, EXTERNAL_DNS_SERVERS)
