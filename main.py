@@ -1,4 +1,7 @@
+import datetime
 import json
+from nslookup import Nslookup
+
 import socket
 
 HOST = "127.0.0.1"
@@ -26,48 +29,158 @@ def load_cache_from_file():
         cache = json.load(cache_file)
 
 
-class DNSProxy():
-    # at the beginning of the project, we should read our last datas from cache.json
-    load_cache_from_file()
+# class DNSProxy:
+#     # at the beginning of the project, we should read our last datas from cache.json
+#     load_cache_from_file()
+#
+#     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
+#         s.settimeout(4.0)  # set a timeout to resend data if it didn't send
+#         s.bind((HOST, PORT))
+#     # todo
+#     # should use some thread here to send N requests
+#
+#     while True:
+#         requested_domain = ""
+#         if cache.get(requested_domain):
+#             print(f'{cache[requested_domain]} cache hit !!!\n')
+#             continue
+#
+#         try:
+#             ip = socket.gethostname(requested_domain)  # get ip from DNSServer
+#             cache[requested_domain] = ip
+#
+#             save_cache_to_file()
+#
+#             print(f'{ip}\n')
+#
+#         except Exception as e:
+#             print("error is happened !!!")
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
-        s.settimeout(4.0)  # set a timeout to resend data if it didn't send
-        s.bind(HOST, PORT)
-    # todo
-    # should use some thread here to send N requests
 
-    while True:
-        requested_domain = ""
-        if cache.get(requested_domain):
-            print(f'{cache[requested_domain]} cache hit !!!\n')
-            continue
-
-        try:
-            ip = socket.gethostname(requested_domain)  # get ip from DNSServer
-            cache[requested_domain] = ip
-
-            save_cache_to_file()
-
-            print(f'{ip}\n')
-
-        except Exception as e:
-            print("error is happened !!!")
-
-class DNSServer:
-    def __int__(self, requested_domain):
+class DNSServer():
+    def __init__(self, requested_domain):
         self.requested_domain = requested_domain
 
     def findIP(self):
         try:
-            ip = socket.gethostname(self.requested_domain)  # get ip from DNSServer
+            # get ip from DNSServer
+            ip = socket.gethostbyname(self.requested_domain)
+
             cache[self.requested_domain] = ip
 
             save_cache_to_file()
 
-            print(f'{ip}\n')
+            print(f'name : {self.requested_domain}\nip : {ip}\n')
 
         except Exception as e:
-            print("error is happened !!!")
+            print(f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
 
 
+domains = {"youtube.com"
+    , "www.blogger.com"
+    , "github.com"
+    , "www.google.com"
+    , "apple.com"
+    , "play.google.com"
+    , "support.google.com"
+    , "wordpress.org"
+    , "linkedin.com"
+    , "github.com"
+    , "youtube.com"
+    , "youtube.com"
+    , "www.google.com"
+    , "www.google.com"
+    , "microsoft.com"
+    , "github.com"
+    , "cloudflare.com"
+    , "youtu.be"
+    , "maps.google.com"
+    , "www.google.com"
+    , "amazon.com"
+    , "whatsapp.com"
+    , "en.wikipedia.org"
+    , "maps.google.com"
+    , "youtube.com"
+    , "amazon.com"
+    , "docs.google.com"
+    , "plus.google.com"
+    , "adobe.com"
+    , "amazon.com"
+    , "www.google.com"
+    , "sites.google.com"
+    , "googleusercontent.com"
+    , "drive.google.com"
+    , "bp.blogspot.com"
+    , "mozilla.org"
+    , "accounts.google.com"
+    , "europa.eu"
+    , "t.me"
+    , "www.google.com"
+    , "policies.google.com"
+    , "github.com"
+    , "vk.com"
+    , "maps.google.com"
+    , "vimeo.com"
+    , "istockphoto.com"
+    , "uol.com.br"
+    , "maps.google.com"
+    , "facebook.com"
+    , "amazon.com"
+    , "maps.google.com"
+    , "search.google.com"
+    , "adobe.com"
+    , "www.google.com"
+    , "apple.com"
+    , "play.google.com"
+    , "support.google.com"
+    , "wordpress.org"
+    , "linkedin.com"
+    , "github.com"
+    , "youtube.com"
+    , "youtube.com"
+    , "www.google.com"
+    , "www.google.com"
+    , "microsoft.com"
+    , "github.com"
+    , "cloudflare.com"
+    , "youtu.be"
+    , "maps.google.com"
+    , "www.google.com"
+    , "amazon.com"
+    , "whatsapp.com"
+    , "en.wikipedia.org"
+    , "maps.google.com"
+    , "youtube.com"
+    , "amazon.com"
+    , "docs.google.com"
+    , "plus.google.com"
+    , "adobe.com"
+    , "amazon.com"
+    , "www.google.com"
+    , "sites.google.com"
+    , "googleusercontent.com"
+    , "drive.google.com"
+    , "bp.blogspot.com"
+    , "mozilla.org"
+    , "accounts.google.com"
+    , "europa.eu"
+    , "t.me"
+    , "www.google.com"
+    , "policies.google.com"
+    , "github.com"
+    , "vk.com"
+    , "maps.google.com"
+    , "vimeo.com"
+    , "istockphoto.com"
+    , "uol.com.br"
+    , "maps.google.com"
+    , "facebook.com"
+    , "amazon.com"}
 
+startTime = datetime.datetime.now().timestamp()
+
+for domain in domains:
+    dnsServer = DNSServer(domain)
+    dnsServer.findIP()
+
+print("time by using DNS Server : ", datetime.datetime.now().timestamp() - startTime)
