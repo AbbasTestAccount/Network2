@@ -66,10 +66,6 @@ class DNSServer():
             # get ip from DNSServer
             ip = socket.gethostbyname(self.requested_domain)
 
-            cache[self.requested_domain] = ip
-
-            save_cache_to_file()
-
             print(f'name : {self.requested_domain}\nip : {ip}\n')
 
         except Exception as e:
