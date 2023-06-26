@@ -1,8 +1,7 @@
 import datetime
 import json
-from nslookup import Nslookup
-
 import socket
+import threading
 
 HOST = "127.0.0.1"
 PORT = 5001
@@ -35,7 +34,7 @@ class DNSProxy:
 
     def findIP(self):
 
-    # at the beginning of the project, we should read our last datas from cache.json
+        # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
@@ -74,7 +73,9 @@ class DNSServer:
             print(f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
 
 
-domains = {"youtube.com"
+domains = [
+    "youtube.com"
+    ,"youtube.com"
     , "www.blogger.com"
     , "github.com"
     , "www.google.com"
@@ -91,7 +92,7 @@ domains = {"youtube.com"
     , "microsoft.com"
     , "github.com"
     , "cloudflare.com"
-    , "youtu.be"
+    , "youtube.com"
     , "maps.google.com"
     , "www.google.com"
     , "amazon.com"
@@ -141,7 +142,7 @@ domains = {"youtube.com"
     , "microsoft.com"
     , "github.com"
     , "cloudflare.com"
-    , "youtu.be"
+    , "youtube.com"
     , "maps.google.com"
     , "www.google.com"
     , "amazon.com"
@@ -173,13 +174,14 @@ domains = {"youtube.com"
     , "uol.com.br"
     , "maps.google.com"
     , "facebook.com"
-    , "amazon.com"}
+    , "amazon.com"]
 
 startTime = datetime.datetime.now().timestamp()
 
 for domain in domains:
     dnsServer = DNSServer(domain)
-    dnsServer.findIP()
+    threading.Thread(target = dnsServer.findIP()).start()
+
 
 dnsServerTime = datetime.datetime.now().timestamp() - startTime
 print("-----------------------------------")
@@ -187,8 +189,8 @@ startTime = datetime.datetime.now().timestamp()
 
 for domain in domains:
     dnsProxy = DNSProxy(domain)
-    dnsProxy.findIP()
-
+    print(cache)
+    threading.Thread(target=dnsProxy.findIP()).start()
 
 print("time by using DNS Server : ", dnsServerTime, "\n")
 
