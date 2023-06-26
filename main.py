@@ -26,29 +26,48 @@ def load_cache_from_file():
         cache = json.load(cache_file)
 
 
-# at the beginning of the project, we should read our last datas from cache.json
-load_cache_from_file()
+class DNSProxy():
+    # at the beginning of the project, we should read our last datas from cache.json
+    load_cache_from_file()
 
-with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
-    s.settimeout(4.0)  # set a timeout to resend data if it didn't send
-    s.bind(HOST, PORT)
-# todo
-# should use some thread here to send N requests
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
+        s.settimeout(4.0)  # set a timeout to resend data if it didn't send
+        s.bind(HOST, PORT)
+    # todo
+    # should use some thread here to send N requests
+
+    while True:
+        requested_domain = ""
+        if cache.get(requested_domain):
+            print(f'{cache[requested_domain]} cache hit !!!\n')
+            continue
+
+        try:
+            ip = socket.gethostname(requested_domain)  # get ip from DNSServer
+            cache[requested_domain] = ip
+
+            save_cache_to_file()
+
+            print(f'{ip}\n')
+
+        except Exception as e:
+            print("error is happened !!!")
+
+class DNSServer:
+    def __int__(self, requested_domain):
+        self.requested_domain = requested_domain
+
+    def findIP(self):
+        try:
+            ip = socket.gethostname(self.requested_domain)  # get ip from DNSServer
+            cache[self.requested_domain] = ip
+
+            save_cache_to_file()
+
+            print(f'{ip}\n')
+
+        except Exception as e:
+            print("error is happened !!!")
 
 
-while True:
-    requested_domain = ""
-    if cache.get(requested_domain):
-        print(f'{cache[requested_domain]}cache hit !!!\n')
-        continue
 
-    try:
-        ip = socket.gethostname(requested_domain)  # get ip
-        cache[requested_domain] = ip
-
-        save_cache_to_file()
-
-        print(f'{ip}\n')
-
-    except Exception as e:
-        print("error is happened !!!")
