@@ -1,5 +1,6 @@
 import json
 import socket
+import struct
 import threading
 
 with open("settings.json", "r") as settings_file:
@@ -91,6 +92,41 @@ class DNSResponse:
 
     def __str__(self):
         return f"DNS Response: ID={self.id}, QNAME={self.qname}, QTYPE={self.qtype}, QCLASS={self.qclass}, RNAME={self.rname}, RTYPE={self.rtype}, RCLASS={self.rclass}, TTL={self.ttl}, RDLENGTH={self.rdlength}, RDATA={self.rdata}"
+
+
+class DNSProxy:
+    def findIP(self):
+        load_cache_from_file()
+
+        domain_name = parse_qname(data[12:])
+        query_type = struct.unpack(">H", data[-4:-2])[0]
+        cache_key = f"{domain_name}_{query_type}"
+
+        if cache_key in cache:
+            ip_address = cache[cache_key]
+            dnsRes = DNSResponse(data)
+            response = dnsRes.__init__(data)
+            sock.sendto(response, addr)
+        else:
+            for dns_server in EXTERNAL_DNS_SERVERS:
+                try:
+                    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    client_socket.settimeout(1)
+                    client_socket.sendto(data, (dns_server, 53))
+                    response, _ = client_socket.recvfrom(1024)
+
+                    if len(response) > 0:
+                        sock.sendto(response, addr)
+
+                        if query_type == 1 or query_type == 28:
+                            ip_address = socket.inet_ntoa(response[-4:]) if query_type == 1 else socket.inet_ntop(
+                                socket.AF_INET6, response[-16:])
+                            cache[cache_key] = ip_address
+                            save_cache_to_file()
+
+                        break
+                except socket.timeout:
+                    continue
 
 
 # ساخت یک سوکت UDP برای گوش دادن به درخواست های DNS
