@@ -11,6 +11,19 @@ EXTERNAL_DNS_SERVERS = settings["external-dns-servers"]
 cache = {}
 
 
+def load_cache_from_file():
+    global cache
+    with open("cache.json", "r") as cache_file:
+        # load data from json
+        cache = json.load(cache_file)
+
+
+def save_cache_to_file():
+    with open("cache.json", "w") as cache_file:
+        # covert into json
+        json.dump(cache, cache_file)
+
+
 def parse_qname(dataToParse):
     domain = ''
     i = 0
@@ -39,7 +52,6 @@ class DNSRequest:
 class DNSResponse:
     def __init__(self, data):
         self.id = data[:2]
-        print(self.id)
         self.flags = data[2:4]
         self.questions = data[4:6]
         self.number_of_answers = data[6:8]
@@ -87,18 +99,17 @@ sock.bind(('127.0.0.1', 53))  # Listen on localhost port 53
 
 while True:
     data, addr = sock.recvfrom(1024)
-    dns_req= DNSRequest(data)
+    dns_req = DNSRequest(data)
     threading.Thread(target=dns_req.__init__(data)).start()
 
-    if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
-        print("Unsupported Query Type")
-        continue
+    # if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
+    #     print("Unsupported Query Type")
+    #     continue
 
-    external_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    external_sock.settimeout(2.0)
     for dns_server in EXTERNAL_DNS_SERVERS:
         try:
-
+            external_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            external_sock.settimeout(2.0)
             external_sock.sendto(data, (dns_server, 53))
 
             # دریافت پاسخ از سرور DNS خارجی
