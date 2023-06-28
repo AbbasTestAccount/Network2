@@ -87,7 +87,12 @@ sock.bind(('127.0.0.1', 53))  # Listen on localhost port 53
 
 while True:
     data, addr = sock.recvfrom(1024)
-    threading.Thread(target=DNSRequest(data).__init__(data)).start()
+    dns_req= DNSRequest(data)
+    threading.Thread(target=dns_req.__init__(data)).start()
+
+    if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
+        print("Unsupported Query Type")
+        continue
 
     external_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     external_sock.settimeout(2.0)
