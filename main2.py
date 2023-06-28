@@ -87,7 +87,7 @@ sock.bind(('127.0.0.1', 53))  # Listen on localhost port 53
 
 while True:
     data, addr = sock.recvfrom(1024)
-    threading.Thread(target=DNSRequest(data)).start()
+    threading.Thread(target=DNSRequest(data).__init__(data)).start()
 
     external_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     external_sock.settimeout(2.0)
