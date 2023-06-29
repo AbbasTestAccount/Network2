@@ -4,7 +4,7 @@ import socket
 import threading
 
 HOST = "127.0.0.1"
-PORT = 5001
+PORT = 53
 
 with open("settings.json", "r") as settings_file:
     settings = json.load(settings_file)
@@ -37,25 +37,26 @@ class DNSProxy:
         # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
 
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
-            s.settimeout(4.0)  # set a timeout to resend data if it didn't send
-            s.bind((HOST, PORT))
-            # todo
-            # should use some thread here to send N requests
+        # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
+        #     s.settimeout(4.0)  # set a timeout to resend data if it didn't send
+        #     s.bind((HOST, PORT))
+        #     # todo
+        # should use some thread here to send N requests
 
-            if cache.get(self.requested_domain):
-                print(f'name : {self.requested_domain}\nip : {cache[self.requested_domain]} cache hit !!!\n')
-            else:
-                try:
-                    ip = socket.gethostbyname(self.requested_domain)  # get ip from DNSServer
-                    cache[self.requested_domain] = ip
+        if cache.get(self.requested_domain) and (datetime.datetime.now().timestamp() - cache[self.requested_domain][1]) <= CACHE_EXPIRATION_TIME:
+            print(f'name : {self.requested_domain}\nip : {cache[self.requested_domain][0]} cache hit !!!\n')
+        else:
+            try:
+                ip = socket.gethostbyname(self.requested_domain)  # get ip from DNSServer
+                gottenTime = datetime.datetime.now().timestamp()
+                cache[self.requested_domain] = (ip,gottenTime)
 
-                    save_cache_to_file()
+                save_cache_to_file()
 
-                    print(f'name : {self.requested_domain}\nip : {ip}\n')
+                print(f'name : {self.requested_domain}\nip : {ip}\n')
 
-                except Exception as e:
-                    print(f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
+            except Exception as e:
+                print(f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
 
 
 class DNSServer:
@@ -75,7 +76,7 @@ class DNSServer:
 
 domains = [
     "youtube.com"
-    ,"youtube.com"
+    , "youtube.com"
     , "www.blogger.com"
     , "github.com"
     , "www.google.com"
@@ -180,8 +181,7 @@ startTime = datetime.datetime.now().timestamp()
 
 for domain in domains:
     dnsServer = DNSServer(domain)
-    threading.Thread(target = dnsServer.findIP()).start()
-
+    threading.Thread(target=dnsServer.findIP()).start()
 
 dnsServerTime = datetime.datetime.now().timestamp() - startTime
 print("-----------------------------------")
