@@ -39,12 +39,24 @@ def parse_qname(dataToParse):
         domain += dataToParse[i + 1:i + 1 + length].decode('utf-8') + '.'
         i += length + 1
 
-    qtype = 0
-    qclass = 0
-    qtype = dataToParse[i: i+2]
-    qclass = dataToParse[i+2 : i+4]
+    qtype = dataToParse[i: i + 2]
+    qclass = dataToParse[i + 2: i + 4]
 
     return domain, qtype, qclass
+
+
+def parse_rname(dataToParse):
+    domain = ''
+    i = 0
+    while i < len(dataToParse):
+        length = dataToParse[i]
+        if length == 0:
+            i += 1
+            break
+        domain += dataToParse[i + 1:i + 1 + length].decode('utf-8') + '.'
+        i += length + 1
+
+    return domain
 
 
 def dNSRequest(data):
@@ -65,48 +77,46 @@ def dNSRequest(data):
     return final_output
 
 
-class DNSResponse:
-    def __init__(self, data):
-        self.id = data[:2]
-        self.flags = data[2:4]
-        self.questions = data[4:6]
-        self.number_of_answers = data[6:8]
-        self.authority = data[8:10]
-        self.additional = data[10:12]
-        self.qname = parse_qname(data[12:])
-        self.qtype = data[-4:-2]
-        self.qclass = data[-2:]
+def dNSResponse(data):
+    id = data[:2]
+    flags = data[2:4]
+    questions = data[4:6]
+    number_of_answers = data[6:8]
+    authority = data[8:10]
+    additional = data[10:12]
+    qname = parse_qname(data[12:])
+    qtype = data[-4:-2]
+    qclass = data[-2:]
 
-        self.rname = ''
-        self.rtype = ''
-        self.rclass = ''
-        self.ttl = ''
-        self.rdlength = ''
-        self.rdata = ''
+    final_output = id + flags + questions + number_of_answers + authority + additional + qtype + qclass
 
-        self.answers = []
-        offset = 12 + len(self.qname) + 4
-        for i in range(int.from_bytes(self.number_of_answers, byteorder='big')):
-            rr_data = data[offset:]
-            rr = self.parse_rr(rr_data)
-            self.answers.append(rr)
-            offset += len(rr_data)
+    offset = 12 + len(qname) + 4
+    answers = []
+    for i in range(int.from_bytes(number_of_answers, byteorder='big')):
+        rr_data = data[offset:]
+        rname, rtype, rclass, ttl, rdlength, rdata = parsing(rr_data)
+        answers.append(rname + rtype + rclass + ttl + rdlength + rdata)
+        offset += len(rr_data)
+    for j in range(0, len(answers)):
+         final_output+= answers[j]
 
-    def parse_rr(self, data):
-        return self.parsing(data)
+    return final_output
 
-    def parsing(self, data):
-        i = 0
-        self.rname = parse_qname(data[i:])
-        i += len(self.rname) + 2
-        self.rtype = data[i:i + 2]
-        self.rclass = data[i + 2:i + 4]
-        self.ttl = data[i + 4:i + 8]
-        self.rdlength = data[i + 8:i + 10]
-        self.rdata = data[i + 10:i + 10 + self.rdlength]
 
-    def __str__(self):
-        return f"DNS Response: ID={self.id}, QNAME={self.qname}, QTYPE={self.qtype}, QCLASS={self.qclass}, RNAME={self.rname}, RTYPE={self.rtype}, RCLASS={self.rclass}, TTL={self.ttl}, RDLENGTH={self.rdlength}, RDATA={self.rdata}"
+def parsing(data):
+    i = 0
+    rname = parse_rname(data[i:])
+    i += len(rname) + 2
+    rtype = data[i:i + 2]
+    rclass = data[i + 2:i + 4]
+    ttl = data[i + 4:i + 8]
+    rdlength = data[i + 8:i + 10]
+    rdata = data[i + 10:i + 10 + rdlength]
+    return rname, rtype, rclass, ttl, rdlength, rdata
+
+
+def __str__(self):
+    return f"DNS Response: ID={self.id}, QNAME={self.qname}, QTYPE={self.qtype}, QCLASS={self.qclass}, RNAME={self.rname}, RTYPE={self.rtype}, RCLASS={self.rclass}, TTL={self.ttl}, RDLENGTH={self.rdlength}, RDATA={self.rdata}"
 
 
 class DNSProxy:
@@ -119,8 +129,7 @@ class DNSProxy:
 
         if cache_key in cache:
             ip_address = cache[cache_key]
-            dnsRes = DNSResponse(data)
-            response = dnsRes.__init__(data)
+            response = dNSResponse(data)
             sock.sendto(response, addr)
         else:
             for dns_server in EXTERNAL_DNS_SERVERS:
@@ -155,7 +164,8 @@ def runDNSServer(dns_req):
             # دریافت پاسخ از سرور DNS خارجی
             response_data = external_sock.recvfrom(1024)
             print(f'response_data: {response_data}')
-            response = DNSResponse(response_data)
+
+            response = dNSResponse(response_data)
 
             # ارسال پاسخ به کلاینت
             sock.sendto(response_data[0], addr)
@@ -173,7 +183,7 @@ sock.bind((HOST, PORT))  # Listen on localhost port 53
 while True:
     data, addr = sock.recvfrom(1024)
     dns_req = dNSRequest(data)
-    threading.Thread(target=runDNSServer, args=dns_req).start()
+    threading.Thread(target=runDNSServer(dns_req)).start()
 
     # if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
     #     print("Unsupported Query Type")
