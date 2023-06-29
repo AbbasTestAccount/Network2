@@ -45,6 +45,8 @@ class DNSProxy:
 
         if cache.get(self.requested_domain) and (datetime.datetime.now().timestamp() - cache[self.requested_domain][1]) <= CACHE_EXPIRATION_TIME:
             print(f'name : {self.requested_domain}\nip : {cache[self.requested_domain][0]} cache hit !!!\n')
+            cache[self.requested_domain] = (cache[self.requested_domain][0], datetime.datetime.now().timestamp())
+
         else:
             try:
                 ip = socket.gethostbyname(self.requested_domain)  # get ip from DNSServer

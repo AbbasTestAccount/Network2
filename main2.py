@@ -11,6 +11,9 @@ EXTERNAL_DNS_SERVERS = settings["external-dns-servers"]
 
 cache = {}
 
+HOST = "127.0.0.1"
+PORT = 53
+
 
 def load_cache_from_file():
     global cache
@@ -31,23 +34,35 @@ def parse_qname(dataToParse):
     while i < len(dataToParse):
         length = dataToParse[i]
         if length == 0:
+            i += 1
             break
         domain += dataToParse[i + 1:i + 1 + length].decode('utf-8') + '.'
         i += length + 1
-    return domain
+
+    qtype = 0
+    qclass = 0
+    qtype = dataToParse[i: i+2]
+    qclass = dataToParse[i+2 : i+4]
+
+    return domain, qtype, qclass
 
 
-class DNSRequest:
-    def __init__(self, data):
-        self.id = data[:2]
-        self.flags = data[2:4]
-        self.questions = data[4:6]
-        self.answers = data[6:8]
-        self.authority = data[8:10]
-        self.additional = data[10:12]
-        self.qname = parse_qname(data[12:])
-        self.qtype = data[-4:-2]
-        self.qclass = data[-2:]
+def dNSRequest(data):
+    print(data)
+    id = data[:2]
+    flags = data[2:4]
+    questions = data[4:6]
+    answers = data[6:8]
+    authority = data[8:10]
+    additional = data[10:12]
+    qname, qtype, qclass = parse_qname(data[12:])
+    # qtype = data[-4:-2]
+    # qclass = data[-2:]
+
+    print(qtype)
+    final_output = id + flags + questions + answers + authority + additional + qtype + qclass
+
+    return final_output
 
 
 class DNSResponse:
@@ -112,7 +127,7 @@ class DNSProxy:
                 try:
                     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     client_socket.settimeout(1)
-                    client_socket.sendto(data, (dns_server, 53))
+                    client_socket.sendto(data, (dns_server, PORT))
                     response, _ = client_socket.recvfrom(1024)
 
                     if len(response) > 0:
@@ -129,27 +144,17 @@ class DNSProxy:
                     continue
 
 
-# ساخت یک سوکت UDP برای گوش دادن به درخواست های DNS
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.bind(('127.0.0.1', 53))  # Listen on localhost port 53
-
-while True:
-    data, addr = sock.recvfrom(1024)
-    dns_req = DNSRequest(data)
-    threading.Thread(target=dns_req.__init__(data)).start()
-
-    # if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
-    #     print("Unsupported Query Type")
-    #     continue
-
+def runDNSServer(dns_req):
+    print(dns_req)
     for dns_server in EXTERNAL_DNS_SERVERS:
         try:
             external_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             external_sock.settimeout(2.0)
-            external_sock.sendto(data, (dns_server, 53))
+            external_sock.sendto(dns_req, (dns_server, PORT))
 
             # دریافت پاسخ از سرور DNS خارجی
             response_data = external_sock.recvfrom(1024)
+            print(f'response_data: {response_data}')
             response = DNSResponse(response_data)
 
             # ارسال پاسخ به کلاینت
@@ -160,3 +165,16 @@ while True:
             print("timeout happened")
 
     external_sock.close()
+
+
+# ساخت یک سوکت UDP برای گوش دادن به درخواست های DNS
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((HOST, PORT))  # Listen on localhost port 53
+while True:
+    data, addr = sock.recvfrom(1024)
+    dns_req = dNSRequest(data)
+    threading.Thread(target=runDNSServer, args=dns_req).start()
+
+    # if dns_req.qtype != (b'\x00\x01' or b'\x00\x1C'):
+    #     print("Unsupported Query Type")
+    #     continue
