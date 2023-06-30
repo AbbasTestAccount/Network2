@@ -37,21 +37,16 @@ class DNSProxy:
         # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
 
-        # with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connection
-        #     s.settimeout(4.0)  # set a timeout to resend data if it didn't send
-        #     s.bind((HOST, PORT))
-        #     # todo
-        # should use some thread here to send N requests
-
-        if cache.get(self.requested_domain) and (datetime.datetime.now().timestamp() - cache[self.requested_domain][1]) <= CACHE_EXPIRATION_TIME:
+        if cache.get(self.requested_domain) and (
+                datetime.datetime.now().timestamp() - cache[self.requested_domain][1]) <= CACHE_EXPIRATION_TIME:
             print(f'name : {self.requested_domain}\nip : {cache[self.requested_domain][0]} cache hit !!!\n')
             cache[self.requested_domain] = (cache[self.requested_domain][0], datetime.datetime.now().timestamp())
 
         else:
             try:
-                ip = socket.gethostbyname(self.requested_domain)  # get ip from DNSServer
+                ip = gethostbyname_manual(self.requested_domain)  # get ip from DNSServer
                 gottenTime = datetime.datetime.now().timestamp()
-                cache[self.requested_domain] = (ip,gottenTime)
+                cache[self.requested_domain] = (ip, gottenTime)
 
                 save_cache_to_file()
 
@@ -74,6 +69,7 @@ class DNSServer:
 
         except Exception as e:
             print(f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
+
 
 def gethostbyname_manual(domain):
     # Set up a UDP socket
