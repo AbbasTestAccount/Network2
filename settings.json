@@ -1,4 +1,7 @@
 {
     "cache-expiration-time": 300,
-    "external-dns-servers": ["8.8.8.8", "8.8.4.4"]
+    "external-dns-servers": [
+        "8.8.8.8",
+        "8.8.4.4"
+    ]
 }
