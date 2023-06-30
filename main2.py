@@ -147,6 +147,8 @@ class DNSProxy:
                                 socket.AF_INET6, response[-16:])
                             cache[cache_key] = ip_address
                             save_cache_to_file()
+                        else:
+                            print("Unsupported Query Type")
 
                         break
                 except socket.timeout:
