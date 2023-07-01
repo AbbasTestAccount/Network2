@@ -77,7 +77,8 @@ class DNSServer:
 
 
 domains = [
-    "youtube.com"
+    "youtube.com",
+    "mail.google.com"
     , "youtube.com"
     , "www.blogger.com"
     , "github.com"

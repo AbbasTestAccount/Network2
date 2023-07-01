@@ -54,31 +54,30 @@ class DNSProxy:
 
         # Extract the query type
         self.type = (query[index+1] << 8) + query[index+2]
-        print(self.domain, self.type)
+
+    def get_type(self):
+        return self.type
 
     def findIP(self):
         # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
-        if cache.get(self.domain):
+        if cache.get(self.domain) and (now() - cache[self.domain][1]) <= CACHE_EXPIRATION_TIME:
             ip, gottonTime = cache[self.domain]
-            if ((now() - gottonTime) <= CACHE_EXPIRATION_TIME):
-                print(
-                    f'name : {self.domain}\nip : {ip} cache hit !!!\n')
-                cache[self.domain] = (ip, now())
-                print(ip)
-                return ip
+            print(
+                f'name : {self.domain}\nip : {ip} cache hit !!!\n')
+            return ip
 
         else:
             try:
                 # get ip from DNSServer
-                ip = gethostbyname_manual(self.domain)
-                cache[self.domain] = (ip, now())
-                save_cache_to_file()
+                ip = gethostbyname_manual(self.domain, self.type)
+                if (ip):
+                    cache[self.domain] = (ip, now())
+                    save_cache_to_file()
                 return ip
             except Exception as e:
-                traceback.print_exc()
                 print(
-                    f"name : {self.requested_domain}\nerror is happened while finding ip {e}\n")
+                    f"name : {self.domain}\nerror is happened while finding ip {e}\n")
         return None
 
 
@@ -91,7 +90,7 @@ def inet_ntoa(addr):
     return '.'.join(reversed(octets))
 
 
-def gethostbyname_manual(domain):
+def gethostbyname_manual(domain, query_type):
     # Set up a UDP socket
     if type(domain) is bytes:
         domain = domain.decode()
@@ -110,25 +109,55 @@ def gethostbyname_manual(domain):
         query += bytes([len(label)]) + label.encode()  # Domain name
 
     query += b"\x00"  # End of domain name
-    query += b"\x00\x01"  # Query type (A record)
+    # query += b"\x00\x01"  # Query type (A record)
+    if query_type == 1:  # A record
+        query += b"\x00\x01"  # Query type (A record)
+    elif query_type == 28:  # AAAA record
+        query += b"\x00\x1c"  # Query type (AAAA record)
+    else:
+        raise ValueError("Invalid query type")
     query += b"\x00\x01"  # Query class (Internet)
 
     # Send the query to a DNS server
     for server in EXTERNAL_DNS_SERVERS:
         try:
             s.sendto(query, (server, 53))
-            data, addr = s.recvfrom(1024)
-            if data:
-                # Parse the response message and extract the IP address
-                # if query_type == 1 or query_type == 28:
-                #     ip_address = socket.inet_ntoa(response[-4:]) if query_type == 1 else socket.inet_ntop(
-                #         socket.AF_INET6, response[-16:])
-                #     cache[cache_key] = ip_address
-                #     save_cache_to_file()
-                ip = socket.inet_ntoa(data[-4:])
+            res, addr = s.recvfrom(1024)
+            if res:
+                if query_type == 1:  # A record
+                    ip = socket.inet_ntoa(res[-4:])
+                elif query_type == 28:  # AAAA record
+                    ip = socket.inet_ntop(socket.AF_INET6, res[-16:])
                 return ip
         except socket.timeout:
             pass
+
+
+def generate_response_query(data, ip, query_type):
+    # Construct the DNS response message
+    response = b""
+    response += data[:2]  # Copy the transaction ID from the query message
+    response += b"\x81\x80"  # Flags: response message, no errors
+    response += data[4:6]  # Questions count
+    response += b"\x00\x01"  # Answer RRs count: 1
+    response += b"\x00\x00"  # Authority RRs count
+    response += b"\x00\x00"  # Additional RRs count
+
+    # Answer section
+    response += data[12:]  # Copy the question section from the query message
+    response += b"\xc0\x0c"  # Pointer to the question section
+    if query_type == 1:  # A record
+        response += b"\x00\x01"  # Query type (A record)
+        response += b"\x00\x04"  # Data length: 4 bytes for IPv4 address
+        response += socket.inet_aton(ip)
+    elif query_type == 28:  # AAAA record
+        response += b"\x00\x1c"  # Query type (AAAA record)
+        response += b"\x00\x10"  # Data length: 16 bytes for IPv6 address
+        response += socket.inet_pton(socket.AF_INET6, ip)
+    response += b"\x00\x01"  # Class: IN
+    # TTL: cache expiration time
+    response += int.to_bytes(CACHE_EXPIRATION_TIME, 4, byteorder="big")
+    return response
 
 
 startTime = now()
@@ -143,11 +172,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connect
                 dnsProxy = DNSProxy(data)
                 ip = dnsProxy.findIP()
                 if (ip):
-                    s.sendto(ip.encode(), addr)
+                    s.sendto(generate_response_query(
+                        data, ip, dnsProxy.get_type()), addr)
                 else:
                     message = "IP of the domain isn't available"
                     s.sendto(message.encode(), addr)
-                # print(cache)
             except socket.timeout:
                 break
 
