@@ -37,27 +37,42 @@ def load_cache_from_file():
 
 
 class DNSProxy:
-    def __init__(self, requested_domain):
-        self.requested_domain = requested_domain.decode()
+    def __init__(self, query):
+        self.extract_data(query)
+
+    def extract_data(self, query):
+        index = 12
+        query_name = ''
+        while True:
+            label_length = query[index]
+            if label_length == 0:
+                break
+            index += 1
+            query_name += query[index:index+label_length].decode('utf-8') + '.'
+            index += label_length
+        self.domain = query_name[:-1]  # Remove the trailing period
+
+        # Extract the query type
+        self.type = (query[index+1] << 8) + query[index+2]
+        print(self.domain, self.type)
 
     def findIP(self):
-
         # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
-        if cache.get(self.requested_domain):
-            ip, gottonTime = cache[self.requested_domain]
+        if cache.get(self.domain):
+            ip, gottonTime = cache[self.domain]
             if ((now() - gottonTime) <= CACHE_EXPIRATION_TIME):
                 print(
-                    f'name : {self.requested_domain}\nip : {ip} cache hit !!!\n')
-                cache[self.requested_domain] = (ip, now())
+                    f'name : {self.domain}\nip : {ip} cache hit !!!\n')
+                cache[self.domain] = (ip, now())
                 print(ip)
                 return ip
 
         else:
             try:
                 # get ip from DNSServer
-                ip = gethostbyname_manual(self.requested_domain)
-                cache[self.requested_domain] = (ip, now())
+                ip = gethostbyname_manual(self.domain)
+                cache[self.domain] = (ip, now())
                 save_cache_to_file()
                 return ip
             except Exception as e:
@@ -105,6 +120,11 @@ def gethostbyname_manual(domain):
             data, addr = s.recvfrom(1024)
             if data:
                 # Parse the response message and extract the IP address
+                # if query_type == 1 or query_type == 28:
+                #     ip_address = socket.inet_ntoa(response[-4:]) if query_type == 1 else socket.inet_ntop(
+                #         socket.AF_INET6, response[-16:])
+                #     cache[cache_key] = ip_address
+                #     save_cache_to_file()
                 ip = socket.inet_ntoa(data[-4:])
                 return ip
         except socket.timeout:

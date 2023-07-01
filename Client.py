@@ -7,12 +7,35 @@ PORT = 53
 domains = [
     "youtube.com", "youtube.com", "www.blogger.com", "github.com", "www.google.com", "apple.com", "play.google.com", "support.google.com", "wordpress.org", "linkedin.com", "github.com", "youtube.com", "youtube.com", "www.google.com", "www.google.com", "microsoft.com", "github.com", "cloudflare.com", "youtube.com", "maps.google.com", "www.google.com", "amazon.com", "whatsapp.com", "en.wikipedia.org", "maps.google.com", "youtube.com", "amazon.com", "docs.google.com", "plus.google.com", "adobe.com", "amazon.com", "www.google.com", "sites.google.com", "googleusercontent.com", "drive.google.com", "bp.blogspot.com", "mozilla.org", "accounts.google.com", "europa.eu", "t.me", "www.google.com", "policies.google.com", "github.com", "vk.com", "maps.google.com", "vimeo.com", "istockphoto.com", "uol.com.br", "maps.google.com", "facebook.com", "amazon.com", "maps.google.com", "search.google.com", "adobe.com", "www.google.com", "apple.com", "play.google.com", "support.google.com", "wordpress.org", "linkedin.com", "github.com", "youtube.com", "youtube.com", "www.google.com", "www.google.com", "microsoft.com", "github.com", "cloudflare.com", "youtube.com", "maps.google.com", "www.google.com", "amazon.com", "whatsapp.com", "en.wikipedia.org", "maps.google.com", "youtube.com", "amazon.com", "docs.google.com", "plus.google.com", "adobe.com", "amazon.com", "www.google.com", "sites.google.com", "googleusercontent.com", "drive.google.com", "bp.blogspot.com", "mozilla.org", "accounts.google.com", "europa.eu", "t.me", "www.google.com", "policies.google.com", "github.com", "vk.com", "maps.google.com", "vimeo.com", "istockphoto.com", "uol.com.br", "maps.google.com", "facebook.com", "amazon.com"]
 
+
+def generate_query(domain):
+    # Set up a UDP socket
+    if type(domain) is bytes:
+        domain = domain.decode()
+
+    message_id = random.randint(0, 65535)
+    # Set up the DNS query message
+    query = message_id.to_bytes(2, byteorder="big")  # Message ID
+    query += b"\x01\x00"  # Flags
+    query += b"\x00\x01"  # Question count
+    query += b"\x00\x00"  # Answer count
+    query += b"\x00\x00"  # Authority count
+    query += b"\x00\x00"  # Additional count
+    for label in domain.split("."):
+        query += bytes([len(label)]) + label.encode()  # Domain name
+
+    query += b"\x00"  # End of domain name
+    query += b"\x00\x01"  # Query type (A record)
+    query += b"\x00\x01"  # Query class (Internet)
+    return query
+
+
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(3.0)
 client_socket.connect((HOST, PORT))
 
 for domain in domains:
-    client_socket.sendall(domain.encode())
+    client_socket.sendall(generate_query(domain))
     # user_input = input("Press 'q' to quit: ")
     # if user_input.lower() == "q":
     #     break
