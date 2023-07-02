@@ -43,6 +43,7 @@ class DNSProxy:
     def extract_data(self, query):
         index = 12
         query_name = ''
+        query_nameByte = b''
         while True:
             label_length = query[index]
             if label_length == 0:
@@ -58,11 +59,14 @@ class DNSProxy:
     def get_type(self):
         return self.type
 
+    def get_domain(self):
+        return self.domain
+
     def findIP(self):
         # at the beginning of the project, we should read our last datas from cache.json
         load_cache_from_file()
-        if cache.get(self.domain) and (now() - cache[self.domain][1]) <= CACHE_EXPIRATION_TIME:
-            ip, gottonTime = cache[self.domain]
+        if cache.get(self.domain) and (now() - cache[self.domain][1]) <= CACHE_EXPIRATION_TIME and cache[self.domain][2] == self.type:
+            ip, gottonTime, type = cache[self.domain]
             print(
                 f'name : {self.domain}\nip : {ip} cache hit !!!\n')
             return ip
@@ -72,7 +76,7 @@ class DNSProxy:
                 # get ip from DNSServer
                 ip = gethostbyname_manual(self.domain, self.type)
                 if (ip):
-                    cache[self.domain] = (ip, now())
+                    cache[self.domain] = (ip, now(), self.type)
                     save_cache_to_file()
                 return ip
             except Exception as e:
@@ -133,7 +137,7 @@ def gethostbyname_manual(domain, query_type):
             pass
 
 
-def generate_response_query(data, ip, query_type):
+def generate_response_query(data, ip, query_type, domain):
     # Construct the DNS response message
     response = b""
     response += data[:2]  # Copy the transaction ID from the query message
@@ -143,20 +147,26 @@ def generate_response_query(data, ip, query_type):
     response += b"\x00\x00"  # Authority RRs count
     response += b"\x00\x00"  # Additional RRs count
 
-    # Answer section
+    # Queries section
     response += data[12:]  # Copy the question section from the query message
-    response += b"\xc0\x0c"  # Pointer to the question section
+    for label in domain.split("."):
+        response += bytes([len(label)]) + label.encode()  # Domain name
+    response += b"\x00"  # End of domain name
+    # Answer section
     if query_type == 1:  # A record
         response += b"\x00\x01"  # Query type (A record)
+        response += b"\x00\x01"  # Class: IN
+        # TTL: cache expiration time
+        response += int.to_bytes(CACHE_EXPIRATION_TIME, 4, byteorder="big")
         response += b"\x00\x04"  # Data length: 4 bytes for IPv4 address
         response += socket.inet_aton(ip)
     elif query_type == 28:  # AAAA record
         response += b"\x00\x1c"  # Query type (AAAA record)
+        response += b"\x00\x01"  # Class: IN
+        # TTL: cache expiration time
+        response += int.to_bytes(CACHE_EXPIRATION_TIME, 4, byteorder="big")
         response += b"\x00\x10"  # Data length: 16 bytes for IPv6 address
         response += socket.inet_pton(socket.AF_INET6, ip)
-    response += b"\x00\x01"  # Class: IN
-    # TTL: cache expiration time
-    response += int.to_bytes(CACHE_EXPIRATION_TIME, 4, byteorder="big")
     return response
 
 
@@ -170,10 +180,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:  # use a UDP connect
         if (data):
             try:
                 dnsProxy = DNSProxy(data)
+                query_type = dnsProxy.get_type()
+                domain = dnsProxy.get_domain()
                 ip = dnsProxy.findIP()
                 if (ip):
                     s.sendto(generate_response_query(
-                        data, ip, dnsProxy.get_type()), addr)
+                        data, ip, query_type, domain), addr)
+                    # s.sendto((ip.encode()), addr)
                 else:
                     message = "IP of the domain isn't available"
                     s.sendto(message.encode(), addr)
